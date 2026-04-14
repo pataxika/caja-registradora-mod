@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caja Registradora Pro</title>
+    <style>
+        :root { --primary: #e94560; --bg: #1a1a2e; --card: #16213e; --text: #fff; --accent: #2ecc71; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { display: grid; grid-template-columns: 1fr 350px; gap: 20px; max-width: 1200px; margin: auto; }
+        .productos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+        .card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: 0.3s; }
+        .card:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .card.sin-stock { opacity: 0.5; cursor: not-allowed; }
+        .carrito { background: var(--card); padding: 20px; border-radius: 15px; height: fit-content; position: sticky; top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .item-carrito { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #2e2e4e; padding-bottom: 5px; font-size: 0.9rem; }
+        .metodos-pago { display: none; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #2e2e4e; padding-top: 15px; }
+        .btn-pago { background: #34495e; color: white; padding: 10px 5px; font-size: 0.75rem; border: 2px solid transparent; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .btn-pago.selected { border-color: var(--accent); background: #2e4e3f; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-confirmar { background: var(--accent); color: white; display: none; }
+        .btn-borrar { background: #e94560; color: white; }
+        .precio { color: var(--accent); font-weight: bold; }
+        input { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 25px; border: none; background: var(--card); color: white; outline: none; }
+    </style>
+</head>
+<body>
+
+    <h1>🛒 Caja Registradora</h1>
+    
+    <div class="container">
+        <section>
+            <input type="text" id="buscador" placeholder="🔍 Buscar producto..." oninput="renderizar()">
+            <div id="grid" class="productos-grid"></div>
+        </section>
+
+        <aside class="carrito">
+            <h3>Resumen de Venta</h3>
+            <div id="lista-carrito"></div>
+            <hr style="border: 0; border-top: 1px solid #2e2e4e; margin: 15px 0;">
+            <div style="font-size: 1.5rem; margin-bottom: 15px;">Total: <span id="total" class="precio">$0</span></div>
+            
+            <div id="seccion-pago" class="metodos-pago">
+                <button class="btn-pago" onclick="seleccionarMetodo('Efectivo', this)">💵 Efectivo</button>
+                <button class="btn-pago" onclick="seleccionarMetodo('Débito', this)">💳 Débito</button>
+                <button class="btn-pago" onclick="seleccionarMetodo('Crédito', this)">💳 Crédito</button>
+            </div>
+
+            <button id="btn-confirmar" class="btn btn-confirmar" onclick="finalizarVenta()">Confirmar Pago</button>
+            <button id="btn-vaciar" class="btn btn-borrar" onclick="vaciarCarrito()" style="display: none;">Vaciar Carrito</button>
+        </aside>
+    </div>
+
+    <script>
+        let productos = [
+            { id: 1, nombre: 'Manzana', precio: 500, stock: 10, icono: '🍎' },
+            { id: 2, nombre: 'Pan', precio: 1200, stock: 5, icono: '🍞' },
+            { id: 3, nombre: 'Leche', precio: 950, stock: 8, icono: '🥛' },
+            { id: 4, nombre: 'Café', precio: 4500, stock: 3, icono: '☕' },
+            { id: 5, nombre: 'Huevos', precio: 3000, stock: 12, icono: '🥚' }
+        ];
+
+        let carrito = [];
+        let metodoSeleccionado = null;
+
+        function renderizar() {
+            const grid = document.getElementById('grid');
+            const filtro = document.getElementById('buscador').value.toLowerCase();
+            grid.innerHTML = '';
+            productos.filter(p => p.nombre.toLowerCase().includes(filtro)).forEach(p => {
+                const div = document.createElement('div');
+                div.className = `card ${p.stock <= 0 ? 'sin-stock' : ''}`;
+                div.onclick = () => agregarAlCarrito(p.id);
+                div.innerHTML = `<div style="font-size: 2rem">${p.icono}</div><b>${p.nombre}</b><div class="precio">$${p.precio}</div><small>Stock: ${p.stock}</small>`;
+                grid.appendChild(div);
+            });
+            actualizarCarritoUI();
+        }
+
+        function agregarAlCarrito(id) {
+            const prod = productos.find(p => p.id === id);
+            if (prod.stock <= 0) return;
+            const enCarrito = carrito.find(item => item.id === id);
+            enCarrito ? enCarrito.cantidad++ : carrito.push({ ...prod, cantidad: 1 });
+            prod.stock--;
+            renderizar();
+        }
+
+        function actualizarCarritoUI() {
+            const lista = document.getElementById('lista-carrito');
+            const totalDisplay = document.getElementById('total');
+            lista.innerHTML = carrito.length === 0 ? '<p style="color: #666">Esperando productos...</p>' : '';
+            let total = 0;
+            carrito.forEach(item => {
+                total += item.precio * item.cantidad;
+                lista.innerHTML += `<div class="item-carrito"><span>${item.nombre} x${item.cantidad}</span><span class="precio">$${item.precio * item.cantidad}</span></div>`;
+            });
+            totalDisplay.innerText = `$${total}`;
+            document.getElementById('seccion-pago').style.display = carrito.length > 0 ? 'grid' : 'none';
+            document.getElementById('btn-vaciar').style.display = carrito.length > 0 ? 'block' : 'none';
+            if(carrito.length === 0) resetPago();
+        }
+
+        function seleccionarMetodo(metodo, el) {
+            metodoSeleccionado = metodo;
+            document.querySelectorAll('.btn-pago').forEach(btn => btn.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('btn-confirmar').style.display = 'block';
+            document.getElementById('btn-confirmar').innerText = `Confirmar Pago (${metodo})`;
+        }
+
+        function resetPago() {
+            metodoSeleccionado = null;
+            document.getElementById('btn-confirmar').style.display = 'none';
+            document.querySelectorAll('.btn-pago').forEach(btn => btn.classList.remove('selected'));
+        }
+
+        function finalizarVenta() {
+            alert(`✅ Venta Exitosa\nTotal: ${document.getElementById('total').innerText}\nMétodo: ${metodoSeleccionado}`);
+            carrito = [];
+            resetPago();
+            renderizar();
+        }
+
+        function vaciarCarrito() {
+            carrito.forEach(item => { productos.find(p => p.id === item.id).stock += item.cantidad; });
+            carrito = [];
+            resetPago();
+            renderizar();
+        }
+
+        renderizar();
+    </script>
+</body>
+</html>
